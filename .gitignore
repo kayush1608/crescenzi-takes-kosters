@@ -16,8 +16,8 @@ iae_project_venv/
 .matplotlib/
 
 # Generated benchmark artifacts
-results/data/*.csv
-results/plots/*.png
+# results/data/*.csv
+# results/plots/*.png
 
 # Local research papers and other large reference files
 *.pdf
