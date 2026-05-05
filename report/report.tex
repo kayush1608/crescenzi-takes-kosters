@@ -2,8 +2,8 @@
 
 \usepackage[a4paper,margin=1in]{geometry}
 \usepackage{amsmath}
+\usepackage{float}
 \usepackage{graphicx}
-\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{subcaption}
@@ -52,11 +52,12 @@ and then take the maximum over all pairs. In an unweighted graph, this can be
 done by running breadth-first search (BFS) from each vertex, giving a time cost
 of $O(n(n+m))$, where $n = |V|$ and $m = |E|$. For large sparse graphs, this is
 often too expensive in practice because it requires a BFS from every node.
-
-% In this paragraph, explain why diameter is important and why large real-world
-% graphs require faster practical methods than the naive exact baseline.
-% You should also briefly state the goal of your report: to compare two more
-% efficient algorithms both theoretically and experimentally.
+For this reason, practical exact algorithms aim to avoid exploring every vertex
+as a BFS source. In this project, we study two such methods that are designed
+to work well on sparse real-world networks: Crescenzi et al.'s iFUB algorithm
+and the Takes-Kosters BoundingDiameters algorithm. Our goal is to compare these
+methods both conceptually and experimentally, and to understand how graph
+family and graph size affect their runtime and BFS usage in practice.
 
 \section{Algorithms Studied}
 
@@ -74,46 +75,28 @@ Each BFS costs $O(n+m)$. The practical efficiency of iFUB comes from requiring
 only a limited number of BFS traversals on many real-world sparse graphs.
 However, in the worst case, the method may still perform many BFS traversals,
 leading to a worst-case running time of $O(n(n+m))$.
+The main intuition is to first locate a center-like starting vertex using
+4-Sweep, then run BFS from that vertex and inspect its fringe layers from the
+outside inward. At each layer, the algorithm computes eccentricities only where
+needed and maintains lower and upper bounds on the graph diameter. Once the two
+bounds coincide, the exact diameter is known.
 
-% Explain the intuition of iFUB here:
-% 1. use 4-Sweep to get a good starting lower bound,
-% 2. choose a center-like node,
-% 3. inspect fringe layers,
-% 4. stop when the lower and upper bounds meet.
-
-\begin{algorithm}[h]
-\caption{iFUB with 4-Sweep High-Degree Initialization}
-\KwIn{Connected unweighted graph $G=(V,E)$}
-\KwOut{Diameter of $G$}
-
-Choose a high-degree start vertex $r_1$\;
-Run BFS from $r_1$ to get a farthest node $a_1$\;
-Run BFS from $a_1$ to get a farthest node $b_1$\;
-Set $r_2$ as the middle vertex of a shortest path from $a_1$ to $b_1$\;
-Run BFS from $r_2$ to get a farthest node $a_2$\;
-Run BFS from $a_2$ to get a farthest node $b_2$\;
-Set $u$ as the middle vertex of a shortest path from $a_2$ to $b_2$\;
-Initialize a lower bound using the best sweep eccentricity\;
-Run BFS from $u$ to get level sets around $u$\;
-Inspect fringe layers from the outside inward\;
-For each node in the current fringe, compute eccentricity if needed\;
-Update lower and upper bounds on the diameter\;
-\If{lower bound equals upper bound}{
-    return the diameter\;
-}
-\end{algorithm}
-
-\begin{figure}[h]
-\centering
-\fbox{
-    \rule{0pt}{2.2in}
-    \rule{0.85\linewidth}{0pt}
-}
-\caption{Placeholder for an iFUB illustration. Replace this with either a TikZ
-diagram or an explanatory figure showing the 4-Sweep initialization, the chosen
-middle vertex, and the fringe layers used for pruning.}
-\label{fig:ifub-idea}
-\end{figure}
+\paragraph{Algorithm Outline.}
+\begin{enumerate}
+    \item Choose a high-degree start vertex $r_1$.
+    \item Run BFS from $r_1$ to get a farthest node $a_1$.
+    \item Run BFS from $a_1$ to get a farthest node $b_1$.
+    \item Set $r_2$ as the middle vertex of a shortest path from $a_1$ to $b_1$.
+    \item Run BFS from $r_2$ to get a farthest node $a_2$.
+    \item Run BFS from $a_2$ to get a farthest node $b_2$.
+    \item Set $u$ as the middle vertex of a shortest path from $a_2$ to $b_2$.
+    \item Initialize a lower bound using the best sweep eccentricity.
+    \item Run BFS from $u$ to get level sets around $u$.
+    \item Inspect fringe layers from the outside inward.
+    \item For each node in the current fringe, compute eccentricity if needed.
+    \item Update lower and upper bounds on the diameter.
+    \item Stop when the lower bound equals the upper bound.
+\end{enumerate}
 
 \subsection{Takes-Kosters: BoundingDiameters}
 
@@ -128,44 +111,25 @@ As with iFUB, each BFS costs $O(n+m)$. The algorithm can terminate much earlier
 than the naive baseline when bounds tighten quickly, but in the worst case it
 may still require many BFS traversals. Therefore, its worst-case running time is
 also $O(n(n+m))$.
+The algorithm starts with all vertices as candidates and repeatedly selects a
+candidate vertex from which it runs BFS. The distances returned by that BFS are
+used to tighten lower and upper bounds on the eccentricity of every candidate,
+as well as global bounds on the graph diameter. Vertices that can no longer
+improve the answer are pruned, which can greatly reduce the total number of BFS
+traversals in practice.
 
-% Explain the intuition of BoundingDiameters here:
-% 1. maintain candidate nodes,
-% 2. store eccentricity lower/upper bounds,
-% 3. run BFS from selected candidates,
-% 4. update bounds using triangle-inequality-style reasoning,
-% 5. prune nodes whose bounds can no longer affect the diameter.
-
-\begin{algorithm}[h]
-\caption{BoundingDiameters}
-\KwIn{Connected unweighted graph $G=(V,E)$}
-\KwOut{Diameter of $G$}
-
-Initialize all vertices as candidates\;
-Initialize eccentricity lower bounds and upper bounds for each candidate\;
-Initialize global diameter lower and upper bounds\;
-\While{candidates remain and the diameter bounds do not meet}{
-    Select a candidate using the bound-based selection rule\;
-    Run BFS from the selected candidate\;
-    Compute its eccentricity\;
-    Update the global diameter lower and upper bounds\;
-    Update eccentricity bounds of all candidates using the BFS distances\;
-    Remove candidates that can no longer improve the answer\;
-}
-Return the final diameter estimate\;
-\end{algorithm}
-
-\begin{figure}[h]
-\centering
-\fbox{
-    \rule{0pt}{2.2in}
-    \rule{0.85\linewidth}{0pt}
-}
-\caption{Placeholder for a BoundingDiameters illustration. Replace this with a
-TikZ diagram or example figure showing candidate bounds, one BFS update step,
-and how pruning removes impossible candidates.}
-\label{fig:tk-idea}
-\end{figure}
+\paragraph{Algorithm Outline.}
+\begin{enumerate}
+    \item Initialize all vertices as candidates.
+    \item Initialize eccentricity lower bounds and upper bounds for each candidate.
+    \item Initialize global diameter lower and upper bounds.
+    \item Repeatedly select a candidate using the bound-based selection rule.
+    \item Run BFS from the selected candidate and compute its eccentricity.
+    \item Update the global diameter lower and upper bounds.
+    \item Update eccentricity bounds of all candidates using the BFS distances.
+    \item Remove candidates that can no longer improve the answer.
+    \item Stop when no useful candidate remains or the global bounds meet.
+\end{enumerate}
 
 \section{Implementation Details}
 
@@ -174,34 +138,33 @@ separate modules for algorithms, graph loading, graph generation, experiment
 management, and plotting.
 
 \subsection{Graph Loading and Facebook Ego-Network Merging}
-
-% Describe how you load the SNAP-style Facebook ego-network files.
-% Mention that each .edges file corresponds to one ego network, and that
-% your loader:
-% - adds alter-to-alter edges from the file,
-% - adds the ego node,
-% - connects the ego node to observed alters,
-% - keeps a connected graph for benchmarking.
-% You can mention the final size of facebook_combined from your experiments.
+The Facebook data in our repository follows the SNAP ego-network format. Each
+\texttt{.edges} file corresponds to one ego network and lists connections among
+the observed alter nodes of a single ego user. Our loader constructs one merged
+undirected graph by adding all alter-to-alter edges, inserting the ego node for
+each network, and connecting that ego node to the alters observed in its local
+network. If the merged graph were disconnected, our pipeline would keep the
+largest connected component for fair diameter benchmarking. In our experiments,
+the resulting \texttt{facebook\_combined} graph has $4039$ nodes and $88{,}234$
+edges.
 
 \subsection{Synthetic Graph Generation}
-
-% Describe the three synthetic families used:
-% - Erdos-Renyi for random graphs,
-% - Barabasi-Albert for scale-free structure,
-% - Watts-Strogatz for small-world structure.
-% Mention that you generated multiple node sizes for each family and kept
-% connected graphs for fair comparison.
+We use three synthetic graph families to study how the algorithms react to
+different structural properties. Erd\H{o}s-R\'enyi graphs represent nearly
+uniform random connectivity, Barab\'asi-Albert graphs represent scale-free
+networks with hubs, and Watts-Strogatz graphs represent small-world networks
+with local clustering and short path lengths. For the main benchmark profile,
+we generated connected graphs with $1000$, $2000$, $5000$, $10{,}000$, and
+$20{,}000$ nodes for each family.
 
 \subsection{Other Implementation Details}
-
-% Use this section to discuss implementation decisions such as:
-% - exact baseline for smaller graphs only,
-% - BFS helper utilities,
-% - tracking lower/upper bounds,
-% - counting BFS traversals,
-% - measuring runtime and memory,
-% - caching or avoiding redundant BFS traversals where applicable.
+Both algorithms were implemented in Python using adjacency-list graph
+representations. We use a separate exact baseline only for smaller graphs,
+where running BFS from every vertex is still affordable. For each benchmark
+run, we record runtime, BFS traversals, and bound information. The Crescenzi
+implementation follows the iFUB workflow with 4-Sweep high-degree
+initialization, while the Takes-Kosters implementation follows the
+BoundingDiameters bound-pruning strategy with alternating candidate selection.
 
 \section{Experimental Setup}
 
@@ -219,9 +182,11 @@ The experiments use one real-world graph and multiple synthetic graph families:
     \item \textbf{Watts-Strogatz:} small-world graphs used to study behavior on
     locally clustered graphs with short path lengths.
 \end{itemize}
-
-% Add the exact node sizes you finally used in your chosen benchmark profile.
-% Also mention which graphs were validated using the exact baseline.
+The final report uses the \texttt{large} benchmark profile. This profile
+includes synthetic graph sizes $1000$, $2000$, $5000$, $10{,}000$, and
+$20{,}000$ for each family, along with the merged Facebook graph. Exact-baseline
+validation was performed earlier on smaller benchmark profiles containing
+$120$- and $220$-node graphs.
 
 \subsection{Metrics Tracked}
 
@@ -236,16 +201,16 @@ The following metrics were recorded during experiments:
     \item relative error,
     \item lower bound and upper bound where relevant.
 \end{itemize}
-
-% If you decide to discuss memory, mention how it was measured and whether you
-% treat it as a primary or secondary metric.
+We also recorded memory usage in the benchmark CSV, although memory is treated
+as a secondary metric in this report because the clearest differences between
+the two algorithms appeared in runtime and BFS counts.
 
 \subsection{Experimental Procedure}
-
-% Describe how benchmarks were run from your Python scripts.
-% Mention that both algorithms were executed on the same graph instances, that
-% results were exported to CSV, and that plots were generated automatically.
-% If relevant, mention the machine used for experiments.
+Both algorithms were executed on exactly the same graph instances generated by
+our benchmark scripts. The results were exported automatically to a CSV file,
+and the plots in this report were produced directly from that CSV using a
+separate plotting script. This ensured that the textual analysis and the
+figures were based on the same recorded benchmark output.
 
 \section{Results and Comparative Analysis}
 
@@ -265,10 +230,10 @@ answer quality. The recorded lower and upper bounds coincide in the benchmark
 output, so the comparison is dominated by runtime and BFS count.
 
 On the synthetic benchmark set, Takes-Kosters was clearly faster overall.
-Crescenzi required about $534.38$ seconds in total, while Takes-Kosters
-required about $90.02$ seconds. The BFS counts show the same trend:
-Crescenzi performed $82{,}437$ BFS traversals, whereas Takes-Kosters performed
-$12{,}409$. Thus, Takes-Kosters achieved the same practical goal using far
+Crescenzi required about $534.35$ seconds in total, while Takes-Kosters
+required about $89.96$ seconds. The BFS counts show the same trend:
+Crescenzi performed $82{,}432$ BFS traversals, whereas Takes-Kosters performed
+$12{,}399$. Thus, Takes-Kosters achieved the same practical goal using far
 fewer BFS explorations on large synthetic graphs.
 
 \subsection{Effect of Graph Structure}
@@ -296,34 +261,34 @@ effective on the tested real-world Facebook graph.
 
 \section{Comparison Plots}
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{runtime_vs_nodes.png}
+    \includegraphics[width=\linewidth]{../results/plots/runtime_vs_nodes.png}
     \caption{Runtime vs.\ Nodes}
 \end{subfigure}
 \hfill
 \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{bfs_traversals_vs_nodes.png}
+    \includegraphics[width=\linewidth]{../results/plots/bfs_traversals_vs_nodes.png}
     \caption{BFS Traversals vs.\ Nodes}
 \end{subfigure}
 \caption{Main performance comparison plots comparing runtime and BFS usage of the two algorithms across graph families.}
 \label{fig:main-plots}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{runtime_by_family.png}
+    \includegraphics[width=\linewidth]{../results/plots/runtime_by_family.png}
     \caption{Runtime by Family}
 \end{subfigure}
 \hfill
 \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{facebook_runtime_comparison.png}
+    \includegraphics[width=\linewidth]{../results/plots/facebook_runtime_comparison.png}
     \caption{Facebook Runtime Comparison}
 \end{subfigure}
 \caption{Additional comparison plots for family-wise behavior and the real-world Facebook graph.}
@@ -362,19 +327,29 @@ strategies change the practical behavior of both algorithms.
 \begin{thebibliography}{9}
 
 \bibitem{crescenzi}
-R. Crescenzi et al.
-\newblock \emph{Title of the iFUB paper}.
-\newblock Add conference/journal details here.
+P. Crescenzi, R. Grossi, M. Habib, L. Lanzi, and A. Marino.
+\newblock \emph{On Computing the Diameter of Real-World Undirected Graphs}.
+\newblock Theoretical Computer Science, 514:84--95, 2013.
+\newblock \url{https://www.sciencedirect.com/science/article/pii/S0304397512008687}
 
 \bibitem{takeskosters}
 F. W. Takes and W. A. Kosters.
-\newblock \emph{Title of the BoundingDiameters paper}.
-\newblock Add conference/journal details here.
+\newblock \emph{Determining the Diameter of Small World Networks}.
+\newblock In Proceedings of the 20th ACM International Conference on
+Information and Knowledge Management (CIKM 2011), pages 1191--1196, 2011.
+\newblock \url{https://dl.acm.org/doi/epdf/10.1145/2063576.2063748}
 
 \bibitem{snap}
 J. Leskovec and A. Krevl.
 \newblock \emph{SNAP Datasets: Stanford Large Network Dataset Collection}.
 \newblock \url{https://snap.stanford.edu/data/}
+
+\bibitem{facebookego}
+J. McAuley and J. Leskovec.
+\newblock \emph{Learning to Discover Social Circles in Ego Networks}.
+\newblock In Advances in Neural Information Processing Systems 25 (NIPS 2012),
+pages 539--547, 2012.
+\newblock \url{https://snap.stanford.edu/social2012/papers/mcauley-leskovec.pdf}
 
 \end{thebibliography}
 
