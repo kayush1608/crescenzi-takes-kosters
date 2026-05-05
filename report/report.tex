@@ -2,6 +2,7 @@
 
 \usepackage[a4paper,margin=1in]{geometry}
 \usepackage{amsmath}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
 \usepackage{float}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -63,7 +64,8 @@ family and graph size affect their runtime and BFS usage in practice.
 
 \subsection{Crescenzi: iFUB with 4-Sweep High-Degree Initialization}
 
-The iFUB (\emph{iterative Fringe Upper Bound}) algorithm improves practical
+The iFUB (\emph{iterative Fringe Upper Bound}) algorithm proposed by Crescenzi
+et al.~\cite{crescenzi} improves practical
 diameter computation by first finding a strong lower bound using BFS sweeps and
 then refining upper and lower bounds layer by layer from a central candidate
 vertex. In this project, the starting node for the 4-Sweep procedure is chosen
@@ -75,32 +77,52 @@ Each BFS costs $O(n+m)$. The practical efficiency of iFUB comes from requiring
 only a limited number of BFS traversals on many real-world sparse graphs.
 However, in the worst case, the method may still perform many BFS traversals,
 leading to a worst-case running time of $O(n(n+m))$.
+Its space complexity is $O(n+m)$ due to the adjacency-list graph representation
+and the BFS distance/queue structures maintained during traversal.
+
 The main intuition is to first locate a center-like starting vertex using
 4-Sweep, then run BFS from that vertex and inspect its fringe layers from the
 outside inward. At each layer, the algorithm computes eccentricities only where
 needed and maintains lower and upper bounds on the graph diameter. Once the two
 bounds coincide, the exact diameter is known.
 
-\paragraph{Algorithm Outline.}
-\begin{enumerate}
-    \item Choose a high-degree start vertex $r_1$.
-    \item Run BFS from $r_1$ to get a farthest node $a_1$.
-    \item Run BFS from $a_1$ to get a farthest node $b_1$.
-    \item Set $r_2$ as the middle vertex of a shortest path from $a_1$ to $b_1$.
-    \item Run BFS from $r_2$ to get a farthest node $a_2$.
-    \item Run BFS from $a_2$ to get a farthest node $b_2$.
-    \item Set $u$ as the middle vertex of a shortest path from $a_2$ to $b_2$.
-    \item Initialize a lower bound using the best sweep eccentricity.
-    \item Run BFS from $u$ to get level sets around $u$.
-    \item Inspect fringe layers from the outside inward.
-    \item For each node in the current fringe, compute eccentricity if needed.
-    \item Update lower and upper bounds on the diameter.
-    \item Stop when the lower bound equals the upper bound.
-\end{enumerate}
+
+\begin{algorithm}[H]
+\caption{Crescenzi iFUB with 4-Sweep High-Degree Initialization}
+\KwIn{Connected unweighted graph $G=(V,E)$}
+\KwOut{Diameter of $G$}
+
+$r_1 \leftarrow$ a highest-degree vertex of $G$\;
+$a_1 \leftarrow$ farthest vertex from $r_1$ using BFS\;
+$b_1 \leftarrow$ farthest vertex from $a_1$ using BFS\;
+$r_2 \leftarrow$ middle vertex of a shortest path from $a_1$ to $b_1$\;
+$a_2 \leftarrow$ farthest vertex from $r_2$ using BFS\;
+$b_2 \leftarrow$ farthest vertex from $a_2$ using BFS\;
+$u \leftarrow$ middle vertex of a shortest path from $a_2$ to $b_2$\;
+$LB \leftarrow \max(\mathrm{ecc}(a_1), \mathrm{ecc}(a_2))$\;
+Run BFS from $u$ and compute level sets $L_0, L_1, \dots, L_h$\;
+$UB \leftarrow 2h$\;
+$i \leftarrow h$\;
+\While{$UB > LB$}{
+    $M \leftarrow LB$\;
+    \ForEach{$v \in L_i$}{
+        compute $\mathrm{ecc}(v)$ by BFS if not already known\;
+        $M \leftarrow \max(M, \mathrm{ecc}(v))$\;
+    }
+    \If{$M > 2(i-1)$}{
+        \Return{$M$}\;
+    }
+    $LB \leftarrow M$\;
+    $UB \leftarrow 2(i-1)$\;
+    $i \leftarrow i-1$\;
+}
+\Return{$LB$}\;
+\end{algorithm}
 
 \subsection{Takes-Kosters: BoundingDiameters}
 
-The Takes-Kosters algorithm maintains lower and upper bounds on the
+The Takes-Kosters BoundingDiameters algorithm introduced by Takes and
+Kosters~\cite{takeskosters} maintains lower and upper bounds on the
 eccentricities of candidate vertices and uses these bounds to prune vertices
 that cannot improve the current diameter estimate. In our implementation, the
 candidate selection strategy alternates between promising upper-bound and
@@ -111,6 +133,10 @@ As with iFUB, each BFS costs $O(n+m)$. The algorithm can terminate much earlier
 than the naive baseline when bounds tighten quickly, but in the worst case it
 may still require many BFS traversals. Therefore, its worst-case running time is
 also $O(n(n+m))$.
+Its space complexity is also $O(n+m)$, since the implementation stores the
+graph in adjacency-list form and maintains BFS state together with lower and
+upper bound arrays for the vertices.
+
 The algorithm starts with all vertices as candidates and repeatedly selects a
 candidate vertex from which it runs BFS. The distances returned by that BFS are
 used to tighten lower and upper bounds on the eccentricity of every candidate,
@@ -118,18 +144,34 @@ as well as global bounds on the graph diameter. Vertices that can no longer
 improve the answer are pruned, which can greatly reduce the total number of BFS
 traversals in practice.
 
-\paragraph{Algorithm Outline.}
-\begin{enumerate}
-    \item Initialize all vertices as candidates.
-    \item Initialize eccentricity lower bounds and upper bounds for each candidate.
-    \item Initialize global diameter lower and upper bounds.
-    \item Repeatedly select a candidate using the bound-based selection rule.
-    \item Run BFS from the selected candidate and compute its eccentricity.
-    \item Update the global diameter lower and upper bounds.
-    \item Update eccentricity bounds of all candidates using the BFS distances.
-    \item Remove candidates that can no longer improve the answer.
-    \item Stop when no useful candidate remains or the global bounds meet.
-\end{enumerate}
+\begin{algorithm}[H]
+\caption{Takes-Kosters BoundingDiameters}
+\KwIn{Connected unweighted graph $G=(V,E)$}
+\KwOut{Diameter of $G$}
+
+$C \leftarrow V$\;
+\ForEach{$v \in V$}{
+    $L[v] \leftarrow -\infty$\;
+    $U[v] \leftarrow +\infty$\;
+}
+$D_L \leftarrow -\infty$\;
+$D_U \leftarrow +\infty$\;
+\While{$C \neq \emptyset$ \textbf{and} $D_L \neq D_U$}{
+    choose a candidate $x \in C$ using the bound-based selection rule\;
+    run BFS from $x$ and compute distances $d(x,\cdot)$\;
+    $e_x \leftarrow \mathrm{ecc}(x)$\;
+    $D_L \leftarrow \max(D_L, e_x)$\;
+    $D_U \leftarrow \min(D_U, 2e_x)$\;
+    \ForEach{$v \in C$}{
+        $L[v] \leftarrow \max(L[v], \max(e_x-d(x,v), d(x,v)))$\;
+        $U[v] \leftarrow \min(U[v], e_x+d(x,v))$\;
+        \If{$U[v] \leq D_L$ \textbf{and} $L[v] \geq D_U/2$}{
+            remove $v$ from $C$\;
+        }
+    }
+}
+\Return{$D_L$}\;
+\end{algorithm}
 
 \section{Implementation Details}
 
@@ -247,7 +289,14 @@ The Facebook graph showed the opposite behavior. On
 Crescenzi finished in $0.029051$ seconds using only $5$ BFS traversals, while
 Takes-Kosters needed $0.060778$ seconds and $10$ BFS traversals. This suggests
 that Crescenzi's 4-Sweep high-degree initialization is especially effective on
-this real-world graph.
+this real-world graph. A likely structural reason is that ego-network-based
+social graphs often contain very high-degree hub vertices that sit close to a
+large fraction of the graph. Since Crescenzi begins from a highest-degree
+vertex, it is naturally biased toward these hubs, which quickly yields strong
+lower bounds and a center-like starting point. In contrast, more uniform
+synthetic families such as Erd\H{o}s-R\'enyi graphs do not contain such extreme
+hubs as consistently, so the same high-degree initialization is less helpful
+and the algorithm may need many more BFS traversals before the bounds meet.
 
 \subsection{Discussion}
 
@@ -265,13 +314,13 @@ effective on the tested real-world Facebook graph.
 \centering
 \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{../results/plots/runtime_vs_nodes.png}
+    \includegraphics[width=\linewidth]{runtime_vs_nodes.png}
     \caption{Runtime vs.\ Nodes}
 \end{subfigure}
 \hfill
 \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{../results/plots/bfs_traversals_vs_nodes.png}
+    \includegraphics[width=\linewidth]{bfs_traversals_vs_nodes.png}
     \caption{BFS Traversals vs.\ Nodes}
 \end{subfigure}
 \caption{Main performance comparison plots comparing runtime and BFS usage of the two algorithms across graph families.}
@@ -282,13 +331,13 @@ effective on the tested real-world Facebook graph.
 \centering
 \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{../results/plots/runtime_by_family.png}
+    \includegraphics[width=\linewidth]{runtime_by_family.png}
     \caption{Runtime by Family}
 \end{subfigure}
 \hfill
 \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{../results/plots/facebook_runtime_comparison.png}
+    \includegraphics[width=\linewidth]{facebook_runtime_comparison.png}
     \caption{Facebook Runtime Comparison}
 \end{subfigure}
 \caption{Additional comparison plots for family-wise behavior and the real-world Facebook graph.}

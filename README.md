@@ -104,7 +104,7 @@ When you run the benchmark script, it automatically:
 Run the benchmark from the project root:
 
 ```bash
-PYTHONPATH=src python scripts/run_benchmarks.py --profile standard
+PYTHONPATH=src python scripts/run_benchmarks.py --profile large
 ```
 
 Available benchmark profiles:
@@ -122,12 +122,12 @@ PYTHONPATH=src python scripts/run_plots.py
 
 ## Benchmark Graphs
 
-For the `standard` profile, the current benchmark includes:
+For the `large` profile used in the final report, the benchmark includes:
 
 - `facebook_combined`
-- `erdos_renyi_{120,220,500,1000,2000}`
-- `barabasi_albert_{120,220,500,1000,2000}`
-- `watts_strogatz_{120,220,500,1000,2000}`
+- `erdos_renyi_{1000,2000,5000,10000,20000}`
+- `barabasi_albert_{1000,2000,5000,10000,20000}`
+- `watts_strogatz_{1000,2000,5000,10000,20000}`
 
 This gives:
 
@@ -155,29 +155,31 @@ The benchmark creates these main artifacts:
 - `report/benchmark_summary.md`
 - `results/plots/runtime_vs_nodes.png`
 - `results/plots/bfs_traversals_vs_nodes.png`
-- `results/plots/relative_error_vs_nodes.png`
 - `results/plots/runtime_by_family.png`
 - `results/plots/facebook_runtime_comparison.png`
 
+The `relative_error_vs_nodes.png` plot is generated only when the selected
+benchmark profile includes graphs that are also validated by the exact baseline.
+
 ## Current Results Summary
 
-From the current `standard` benchmark run:
+From the current `large` benchmark run:
 
-- both algorithms matched the exact diameter on all `6/6` validated small-graph cases
+- this run is focused on scalability, so it does not include exact-baseline rows
 - `Takes-Kosters` was faster overall on the synthetic benchmark set
 - `Crescenzi` was faster on the real-world `facebook_combined` graph
 - on `facebook_combined`, both algorithms returned diameter `8`
 
 Facebook graph comparison:
 
-- `Crescenzi`: diameter `8`, runtime `0.030158 s`, `5` BFS traversals
-- `Takes-Kosters`: diameter `8`, runtime `0.062059 s`, `10` BFS traversals
+- `Crescenzi`: diameter `8`, runtime `0.029051 s`, `5` BFS traversals
+- `Takes-Kosters`: diameter `8`, runtime `0.060778 s`, `10` BFS traversals
 
 Overall synthetic benchmark trend:
 
 - `Takes-Kosters` was faster on all `5/5` Watts-Strogatz graphs
-- `Takes-Kosters` was faster on `4/5` Erdos-Renyi graphs
-- `Takes-Kosters` was faster on `3/5` Barabasi-Albert graphs
+- `Takes-Kosters` was faster on all `5/5` Erdos-Renyi graphs
+- `Takes-Kosters` was faster on `4/5` Barabasi-Albert graphs
 
 ## Main Algorithm Files
 
