@@ -4,6 +4,7 @@ from typing import Any
 
 @dataclass(slots=True)
 class AlgorithmResult:
+    # One result record keeps the benchmark pipeline simple and uniform.
     name: str
     diameter: int | None
     runtime_seconds: float

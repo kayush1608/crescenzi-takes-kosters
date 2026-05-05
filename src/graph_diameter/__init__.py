@@ -1,1 +1,1 @@
-"""Helpers for comparing graph diameter algorithms."""
+"""Top-level package for the graph diameter comparison project."""

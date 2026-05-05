@@ -12,6 +12,7 @@ from graph_diameter.algorithms.base import DiameterAlgorithm
 from graph_diameter.models import AlgorithmResult
 
 
+# Run a plain BFS and return distances from one source to every reachable node.
 def _bfs_distances(graph: nx.Graph, source: int) -> dict[int, int]:
     distances = {source: 0}
     queue = deque([source])
@@ -28,6 +29,7 @@ def _bfs_distances(graph: nx.Graph, source: int) -> dict[int, int]:
 
 
 class TakesKostersDiameter(DiameterAlgorithm):
+    # Exact bound-based diameter algorithm inspired by BoundingDiameters.
     """
     Exact bound-based implementation inspired by Takes and Kosters'
     BoundingDiameters algorithm.
@@ -57,6 +59,7 @@ class TakesKostersDiameter(DiameterAlgorithm):
         iteration: int,
         rng: random.Random,
     ) -> int:
+        # Keep the selection logic isolated so we can swap strategies cleanly.
         if self.selection_strategy == "random":
             return rng.choice(list(candidates))
 
@@ -79,6 +82,7 @@ class TakesKostersDiameter(DiameterAlgorithm):
                 candidates,
                 key=lambda node: (upper_bounds[node], graph.degree[node], -node),
             )
+        # On alternating rounds, pick the most constrained lower-bound candidate instead.
         return min(
             candidates,
             key=lambda node: (lower_bounds[node], -graph.degree[node], node),
@@ -94,6 +98,7 @@ class TakesKostersDiameter(DiameterAlgorithm):
         start = time.perf_counter()
         rng = random.Random(self.random_seed)
 
+        # Start with the loosest possible bounds and tighten them after each BFS.
         candidates = set(graph.nodes)
         lower_bounds = {node: -math.inf for node in graph.nodes}
         upper_bounds = {node: math.inf for node in graph.nodes}
@@ -120,12 +125,14 @@ class TakesKostersDiameter(DiameterAlgorithm):
             eccentricity = max(distances.values(), default=0)
             bfs_traversals += 1
 
+            # The current eccentricity sharpens the global diameter bounds immediately.
             diameter_lower = max(diameter_lower, eccentricity)
             diameter_upper = min(diameter_upper, 2 * eccentricity)
 
             removable: set[int] = set()
             for node in candidates:
                 distance = distances[node]
+                # Update per-node eccentricity bounds using the new BFS distances.
                 lower_bounds[node] = max(
                     lower_bounds[node],
                     max(eccentricity - distance, distance),
@@ -139,6 +146,7 @@ class TakesKostersDiameter(DiameterAlgorithm):
                     upper_bounds[node] <= diameter_lower
                     and lower_bounds[node] >= diameter_upper / 2
                 ) or lower_bounds[node] == upper_bounds[node]:
+                    # Once a candidate cannot change the answer anymore, we can drop it.
                     removable.add(node)
 
             candidates -= removable
@@ -149,6 +157,7 @@ class TakesKostersDiameter(DiameterAlgorithm):
         exact_by_exhaustion = not candidates
         reported_upper_bound = int(diameter_lower) if exact_by_exhaustion else int(diameter_upper)
 
+        # If all candidates were exhausted, the lower bound is the exact diameter.
         return AlgorithmResult(
             name=self.name,
             diameter=int(diameter_lower),

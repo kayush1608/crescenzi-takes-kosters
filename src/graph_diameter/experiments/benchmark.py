@@ -18,6 +18,7 @@ from graph_diameter.data.synthetic import (
 from graph_diameter.experiments.plots import generate_plots
 
 
+# Centralized paths keep the scripts simple and consistent.
 ROOT = Path(__file__).resolve().parents[3]
 DATASET_DIR = ROOT / "dataset"
 RESULTS_DIR = ROOT / "results" / "data"
@@ -33,12 +34,14 @@ PROFILE_SIZES = {
 }
 
 
+# Use the exact baseline only where the graph is still small enough to be practical.
 def _exact_if_small(graph: nx.Graph, node_limit: int = 220) -> int | None:
     if graph.number_of_nodes() > node_limit:
         return None
     return ExactDiameter().run(graph).diameter
 
 
+# Tune Erdos-Renyi density so larger graphs stay sparse but connected enough to be interesting.
 def _erdos_renyi_probability(nodes: int) -> float:
     # Keep the average degree around 10 while slightly boosting small cases.
     if nodes <= 200:
@@ -48,6 +51,7 @@ def _erdos_renyi_probability(nodes: int) -> float:
     return min(0.01, 10.0 / nodes)
 
 
+# Build the full benchmark suite for one named profile.
 def build_benchmark_graphs(profile: str = "standard") -> list[tuple[str, str, nx.Graph]]:
     if profile not in PROFILE_SIZES:
         valid = ", ".join(sorted(PROFILE_SIZES))
@@ -57,6 +61,7 @@ def build_benchmark_graphs(profile: str = "standard") -> list[tuple[str, str, nx
         ("real_world", "facebook_combined", load_combined_facebook_graph(DATASET_DIR)),
     ]
 
+    # For each requested size, benchmark the same three synthetic families.
     for nodes in PROFILE_SIZES[profile]:
         graphs.append(
             (
@@ -90,6 +95,7 @@ def build_benchmark_graphs(profile: str = "standard") -> list[tuple[str, str, nx
     return graphs
 
 
+# Run both algorithms on every graph and collect one row per result.
 def run_benchmarks(profile: str = "standard") -> pd.DataFrame:
     algorithms = [CrescenziDiameter(), TakesKostersDiameter()]
     rows: list[dict[str, object]] = []
@@ -102,6 +108,7 @@ def run_benchmarks(profile: str = "standard") -> pd.DataFrame:
             if exact_value not in (None, 0) and result.diameter is not None:
                 relative_error = abs(result.diameter - exact_value) / exact_value
 
+            # Store everything needed later for CSV export, plotting, and the report.
             rows.append(
                 {
                     "family": family,
@@ -134,6 +141,7 @@ def run_benchmarks(profile: str = "standard") -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values(["family", "nodes", "algorithm", "graph"]).reset_index(drop=True)
 
 
+# Turn the latest benchmark DataFrame into a compact markdown summary for the report folder.
 def write_benchmark_summary(dataframe: pd.DataFrame, output_path: Path, profile: str) -> None:
     lines = [
         "# Benchmark Summary",
@@ -188,6 +196,7 @@ def write_benchmark_summary(dataframe: pd.DataFrame, output_path: Path, profile:
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+# Main entry point used by the benchmark runner script.
 def main(profile: str | None = None) -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -196,6 +205,7 @@ def main(profile: str | None = None) -> None:
     dataframe = run_benchmarks(profile=selected_profile)
     dataframe.to_csv(OUTPUT_CSV, index=False)
     write_benchmark_summary(dataframe, SUMMARY_MD, selected_profile)
+    # Plot generation happens immediately so each run leaves behind report-ready artifacts.
     created_plots = generate_plots(dataframe, PLOTS_DIR)
     print(f"Saved benchmark results to {OUTPUT_CSV}")
     print(f"Saved benchmark summary to {SUMMARY_MD}")

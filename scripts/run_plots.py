@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
+# Keep Matplotlib's cache inside the repo so plot regeneration works everywhere.
 ROOT = Path(__file__).resolve().parents[1]
 os.environ.setdefault("MPLCONFIGDIR", str(ROOT / ".matplotlib"))
 
@@ -12,6 +13,7 @@ CSV_PATH = ROOT / "results" / "data" / "benchmark_results.csv"
 PLOTS_DIR = ROOT / "results" / "plots"
 
 
+# Reload the saved benchmark CSV and rebuild the plot artifacts from it.
 def main() -> None:
     dataframe = pd.read_csv(CSV_PATH)
     created = generate_plots(dataframe, PLOTS_DIR)

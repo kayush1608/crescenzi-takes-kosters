@@ -10,6 +10,7 @@ from graph_diameter.algorithms.base import DiameterAlgorithm
 from graph_diameter.models import AlgorithmResult
 
 
+# Run a plain BFS and return distances from one source to every reachable node.
 def _bfs_distances(graph: nx.Graph, source: int) -> dict[int, int]:
     distances = {source: 0}
     queue = deque([source])
@@ -35,12 +36,14 @@ class ExactDiameter(DiameterAlgorithm):
     name = "Exact"
 
     def run(self, graph: nx.Graph) -> AlgorithmResult:
+        # Measure wall-clock time and resident memory for the full exact run.
         process = psutil.Process()
         start = time.perf_counter()
 
         diameter = 0
         bfs_traversals = 0
 
+        # The exact baseline simply treats every node as a BFS source.
         for node in graph.nodes:
             distances = _bfs_distances(graph, node)
             if len(distances) != graph.number_of_nodes():
@@ -51,6 +54,7 @@ class ExactDiameter(DiameterAlgorithm):
         runtime = time.perf_counter() - start
         memory_bytes = process.memory_info().rss
 
+        # For the exact baseline, the returned diameter is both the lower and upper bound.
         return AlgorithmResult(
             name=self.name,
             diameter=diameter,

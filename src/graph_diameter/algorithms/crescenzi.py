@@ -11,6 +11,7 @@ from graph_diameter.algorithms.base import DiameterAlgorithm
 from graph_diameter.models import AlgorithmResult
 
 
+# Build one BFS tree and keep the extra structure iFUB needs later.
 def _bfs_tree(
     graph: nx.Graph,
     source: int,
@@ -38,6 +39,7 @@ def _bfs_tree(
     return distances, parents, levels, farthest
 
 
+# Rebuild a shortest path by walking backward through BFS parents.
 def _reconstruct_path(parents: dict[int, int | None], target: int) -> list[int]:
     path: list[int] = []
     current: int | None = target
@@ -48,10 +50,12 @@ def _reconstruct_path(parents: dict[int, int | None], target: int) -> list[int]:
     return path
 
 
+# Pick the middle node of a path, which acts like a center estimate.
 def _middle_of_path(path: list[int]) -> int:
     return path[len(path) // 2]
 
 
+# Return the farthest reached node together with the source eccentricity.
 def _farthest_and_eccentricity(graph: nx.Graph, source: int) -> tuple[int, int, dict[int, int | None], list[list[int]]]:
     distances, parents, levels, farthest = _bfs_tree(graph, source)
     eccentricity = distances[farthest]
@@ -59,6 +63,7 @@ def _farthest_and_eccentricity(graph: nx.Graph, source: int) -> tuple[int, int, 
 
 
 class CrescenziDiameter(DiameterAlgorithm):
+    # Practical iFUB implementation with a configurable starting strategy.
     """
     Implementation of the iFUB algorithm from Crescenzi et al. (2013).
 
@@ -79,6 +84,7 @@ class CrescenziDiameter(DiameterAlgorithm):
         self.random_seed = random_seed
 
     def _select_initial_node(self, graph: nx.Graph) -> int:
+        # The start node choice matters because it drives the quality of the early lower bound.
         if self.start_mode == "random":
             nodes = list(graph.nodes)
             return random.Random(self.random_seed).choice(nodes)
@@ -90,6 +96,7 @@ class CrescenziDiameter(DiameterAlgorithm):
         raise ValueError(f"Unsupported start_mode: {self.start_mode}")
 
     def _four_sweep(self, graph: nx.Graph) -> tuple[int, int, int]:
+        # 4-Sweep gives iFUB a much stronger starting point than a single arbitrary BFS.
         bfs_traversals = 0
 
         r1 = self._select_initial_node(graph)
@@ -113,6 +120,7 @@ class CrescenziDiameter(DiameterAlgorithm):
         return lower_bound, u, bfs_traversals
 
     def _ifub(self, graph: nx.Graph, start_node: int, lower_bound: int) -> tuple[int, int, int | None]:
+        # Cache eccentricities so repeated fringe checks do not rerun the same BFS.
         bfs_traversals = 0
         eccentricity_cache: dict[int, int] = {}
 
@@ -124,6 +132,7 @@ class CrescenziDiameter(DiameterAlgorithm):
         ub = 2 * ecc_u
         i = ecc_u
 
+        # Walk inward from the outer fringe until the lower and upper bounds meet.
         while ub - lb > self.precision_threshold:
             max_bi = lb
             for node in levels[i]:
@@ -134,6 +143,7 @@ class CrescenziDiameter(DiameterAlgorithm):
                 if eccentricity_cache[node] > max_bi:
                     max_bi = eccentricity_cache[node]
 
+            # This is the early-stop condition used by the iFUB analysis.
             if max_bi > 2 * (i - 1):
                 return max_bi, bfs_traversals, None
 
@@ -152,6 +162,7 @@ class CrescenziDiameter(DiameterAlgorithm):
         process = psutil.Process()
         start = time.perf_counter()
 
+        # Either use 4-Sweep or fall back to a simpler single-source initialization.
         if self.start_mode.startswith("4-sweep"):
             initial_lower_bound, start_node, sweep_bfses = self._four_sweep(graph)
         else:
@@ -169,6 +180,7 @@ class CrescenziDiameter(DiameterAlgorithm):
         memory_bytes = process.memory_info().rss
         total_bfses = sweep_bfses + ifub_bfses
 
+        # When iFUB converges exactly, the final lower and upper bounds collapse together.
         return AlgorithmResult(
             name=self.name,
             diameter=diameter,

@@ -5,6 +5,7 @@ from pathlib import Path
 import networkx as nx
 
 
+# Read one ego-network edge list into integer node pairs.
 def _load_edges(edges_path: Path) -> list[tuple[int, int]]:
     edges: list[tuple[int, int]] = []
     with edges_path.open("r", encoding="utf-8") as handle:
@@ -15,6 +16,7 @@ def _load_edges(edges_path: Path) -> list[tuple[int, int]]:
     return edges
 
 
+# Pull the node ids that appear in the optional feature file.
 def _load_feat_nodes(feat_path: Path) -> set[int]:
     nodes: set[int] = set()
     if not feat_path.exists():
@@ -28,6 +30,7 @@ def _load_feat_nodes(feat_path: Path) -> set[int]:
     return nodes
 
 
+# Merge all ego networks into one undirected graph for benchmarking.
 def load_combined_facebook_graph(dataset_dir: str | Path) -> nx.Graph:
     """
     Merge the Facebook ego networks into a single undirected graph.
@@ -42,6 +45,7 @@ def load_combined_facebook_graph(dataset_dir: str | Path) -> nx.Graph:
         ego_id = int(edges_path.stem)
         feat_path = edges_path.with_suffix(".feat")
 
+        # Track every alter we see so the ego node can be connected back to them.
         alters: set[int] = set()
         graph.add_node(ego_id)
 
@@ -56,6 +60,7 @@ def load_combined_facebook_graph(dataset_dir: str | Path) -> nx.Graph:
             graph.add_edge(ego_id, alter)
 
     if not nx.is_connected(graph):
+        # Keep one connected graph because the diameter routines assume connectivity.
         largest_component = max(nx.connected_components(graph), key=len)
         graph = graph.subgraph(largest_component).copy()
 

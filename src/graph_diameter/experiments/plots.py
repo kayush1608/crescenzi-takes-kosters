@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+# Save one metric as a family-by-family line plot so equal node counts do not get mixed together.
 def _save_family_metric_plot(
     dataframe: pd.DataFrame,
     y_column: str,
@@ -17,6 +18,7 @@ def _save_family_metric_plot(
     fig, axes = plt.subplots(len(families), 1, figsize=(9, 4 * len(families)), squeeze=False)
 
     for axis, family in zip(axes.flatten(), families):
+        # Each subplot stays within one graph family so the x-axis is meaningful.
         subset = dataframe[dataframe["family"] == family].sort_values(["nodes", "graph"])
         for algorithm, group in subset.groupby("algorithm"):
             axis.plot(group["nodes"], group[y_column], marker="o", linewidth=2, label=algorithm)
@@ -31,6 +33,7 @@ def _save_family_metric_plot(
     plt.close(fig)
 
 
+# Compare average runtime across graph families in one summary chart.
 def _save_family_average_runtime_plot(dataframe: pd.DataFrame, output_path: Path) -> None:
     summary = (
         dataframe.groupby(["family", "algorithm"], as_index=False)["runtime_seconds"]
@@ -51,6 +54,7 @@ def _save_family_average_runtime_plot(dataframe: pd.DataFrame, output_path: Path
     plt.close(fig)
 
 
+# Highlight the real-world Facebook timing separately because it appears only once per run.
 def _save_facebook_runtime_plot(dataframe: pd.DataFrame, output_path: Path) -> None:
     facebook_rows = dataframe[dataframe["graph"] == "facebook_combined"].copy()
     if facebook_rows.empty:
@@ -70,6 +74,7 @@ def _save_facebook_runtime_plot(dataframe: pd.DataFrame, output_path: Path) -> N
     ax.set_ylabel("Runtime (s)")
     ax.grid(axis="y", alpha=0.3)
 
+    # Put the exact runtime on each bar so the plot is easier to cite in the report.
     for bar, runtime in zip(bars, facebook_rows["runtime_seconds"]):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
@@ -84,12 +89,14 @@ def _save_facebook_runtime_plot(dataframe: pd.DataFrame, output_path: Path) -> N
     plt.close(fig)
 
 
+# Generate every plot artifact associated with one benchmark CSV.
 def generate_plots(dataframe: pd.DataFrame, output_dir: str | Path) -> list[Path]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     created: list[Path] = []
 
+    # These plots focus on the multi-size synthetic families.
     overall = dataframe[dataframe["graph"] != "facebook_combined"].copy()
     if not overall.empty:
         runtime_plot = output_path / "runtime_vs_nodes.png"
@@ -130,6 +137,7 @@ def generate_plots(dataframe: pd.DataFrame, output_dir: str | Path) -> list[Path
         _save_family_average_runtime_plot(overall, family_runtime_plot)
         created.append(family_runtime_plot)
 
+    # The Facebook graph is a separate one-off comparison, so it gets its own chart.
     facebook_rows = dataframe[dataframe["graph"] == "facebook_combined"]
     if not facebook_rows.empty:
         facebook_plot = output_path / "facebook_runtime_comparison.png"
