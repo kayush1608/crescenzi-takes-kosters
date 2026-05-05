@@ -1,40 +1,51 @@
-# Crescenzi vs Takes-Kosters
+# IAE Project
 
-Project `8` for the IAE graph diameter comparison track.
+## Crescenzi vs Takes-Kosters
 
-This repository is structured to compare two graph diameter algorithms in practice:
+This project compares two graph diameter algorithms on real-world and synthetic graphs:
 
-- `Crescenzi`
-- `Takes-Kosters`
+- `Crescenzi` implemented as `iFUB`
+- `Takes-Kosters` implemented as `BoundingDiameters`
 
-The goal is to study how they behave on multiple graph families, measure their performance, and generate plots/report material.
+The main goal is to study their correctness, runtime behavior, BFS usage, and practical performance on different graph families.
 
-## Current Scope
+## Project Objectives
 
-The repository now includes:
+- implement both graph diameter algorithms
+- compare them on multiple graph types
+- validate correctness on smaller graphs using an exact baseline
+- generate results, plots, and report-ready observations
 
-- a common graph loader interface
-- paper-based implementations for both algorithms
-- an exact baseline for small graphs
-- synthetic graph generation utilities
-- an expanded benchmark runner and CSV output path
-- plot generation for runtime, BFS traversals, and error
-- a clean directory layout for code, plots, and report writing
+## What Is Implemented
 
-## Repository Layout
+- common algorithm interface
+- `Crescenzi` / `iFUB` implementation
+- `Takes-Kosters` / `BoundingDiameters` implementation
+- exact diameter baseline for small connected graphs
+- Facebook ego-network loader merged into one connected graph
+- synthetic graph generation for:
+  - Erdos-Renyi
+  - Barabasi-Albert
+  - Watts-Strogatz
+- benchmark runner with multiple size profiles
+- CSV result export
+- automatic plot generation
+- auto-generated benchmark summary for report writing
+
+## Repository Structure
 
 ```text
 crescenzi-takes-kosters/
 ├── dataset/                      # Facebook ego-network files
 ├── report/
-│   ├── benchmark_summary.md      # Auto-written experiment summary
-│   └── notes.md                  # Working notes for report writing
+│   ├── benchmark_summary.md      # Auto-generated benchmark summary
+│   └── notes.md                  # Report drafting notes
 ├── results/
-│   ├── data/                     # Benchmark CSV files
+│   ├── data/                     # Benchmark CSV output
 │   └── plots/                    # Generated plots
 ├── scripts/
-│   ├── run_benchmarks.py         # Main benchmark entry point
-│   └── run_plots.py              # Rebuild plots from existing CSV
+│   ├── run_benchmarks.py         # Runs all benchmarks for a chosen profile
+│   └── run_plots.py              # Regenerates plots from saved CSV data
 ├── src/
 │   └── graph_diameter/
 │       ├── algorithms/
@@ -46,52 +57,62 @@ crescenzi-takes-kosters/
 │       │   ├── facebook.py
 │       │   └── synthetic.py
 │       ├── experiments/
-│       │   └── benchmark.py
+│       │   ├── benchmark.py
+│       │   └── plots.py
 │       ├── __init__.py
 │       └── models.py
 └── requirements.txt
 ```
 
-## Recommended Workflow
+## Dataset
 
-1. Keep the merged Facebook graph as the real-world dataset.
-2. Use the synthetic graph families already wired into the benchmark.
-3. Validate correctness on smaller graphs using the exact baseline.
-4. Benchmark runtime, memory, BFS traversals, and diameter quality.
-5. Generate plots and convert the benchmark output into report material.
+The real-world graph is built from the Facebook ego-network dataset in `dataset/`.
 
-## Dataset Note
+Each `*.edges` file represents one ego network. The loader:
 
-Each `*.edges` file in `dataset/` is an ego network. For a larger connected graph, this repo includes a loader that combines all ego networks into one undirected graph by:
+- adds alter-to-alter edges from each ego network
+- adds the ego node itself
+- connects the ego node to its observed alters
+- keeps the largest connected component if needed
 
-- adding alter-to-alter edges from each `.edges` file
-- connecting each ego node to the alters observed in its network
-
-This is the same general idea used in the reference `aad` repo.
+This produces the `facebook_combined` graph used in benchmarking.
 
 ## Setup
 
-Create a virtual environment if you want, then install dependencies:
+Install the required dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Running The Benchmark
+## How The Benchmark Works
 
-From the repository root:
+You do not need to manually provide one graph as input.
+
+When you run the benchmark script, it automatically:
+
+- loads the merged Facebook graph
+- generates synthetic graphs for the selected profile
+- runs both algorithms on all graphs in that profile
+- computes exact diameter on smaller graphs when enabled
+- saves CSV results
+- generates plots
+- writes a benchmark summary markdown file
+
+## Running The Code
+
+Run the benchmark from the project root:
 
 ```bash
-PYTHONPATH=src python scripts/run_benchmarks.py
+PYTHONPATH=src python scripts/run_benchmarks.py --profile standard
 ```
 
-This will:
+Available benchmark profiles:
 
-- load the merged Facebook graph
-- generate multiple synthetic graph families and sizes
-- run both paper-based algorithms
-- save results to `results/data/benchmark_results.csv`
-- save plots to `results/plots/`
+- `quick`: `7` graphs total
+- `standard`: `16` graphs total
+- `large`: `16` graphs total
+- `full`: `25` graphs total
 
 To regenerate plots from the latest CSV:
 
@@ -99,54 +120,67 @@ To regenerate plots from the latest CSV:
 PYTHONPATH=src python scripts/run_plots.py
 ```
 
-## Implemented Algorithms
+## Benchmark Graphs
 
-- `src/graph_diameter/algorithms/crescenzi.py`
-  Uses the `iFUB` algorithm from Crescenzi et al. with 4-Sweep high-degree initialization by default.
+For the `standard` profile, the current benchmark includes:
 
-- `src/graph_diameter/algorithms/takes_kosters.py`
-  Uses the `BoundingDiameters` bound-based exact method from Takes and Kosters with alternating candidate selection.
+- `facebook_combined`
+- `erdos_renyi_{120,220,500,1000,2000}`
+- `barabasi_albert_{120,220,500,1000,2000}`
+- `watts_strogatz_{120,220,500,1000,2000}`
 
-These two files are the main comparison targets for your report.
+This gives:
 
-## Metrics To Compare
+- `16` graph instances total
+- `32` algorithm runs total because each graph is tested with both algorithms
 
-You will likely want at least:
+## Metrics Collected
 
-- runtime
-- memory usage
 - returned diameter
-- exact diameter on small graphs
+- exact diameter for small graphs
 - absolute error
 - relative error
-- number of BFS traversals / iterations
-
-If the paper gives bounds instead of exact answers, also record:
-
+- runtime in seconds
+- memory usage
+- BFS traversals
 - lower bound
 - upper bound
 - bound gap
 
-## Current Benchmark Set
+## Output Files
 
-- `facebook_combined`
-- `erdos_renyi_{120,220,500}`
-- `barabasi_albert_{120,220,500}`
-- `watts_strogatz_{120,220,500}`
+The benchmark creates these main artifacts:
 
-Exact validation is automatically computed for smaller graphs in the benchmark suite.
+- `results/data/benchmark_results.csv`
+- `report/benchmark_summary.md`
+- `results/plots/runtime_vs_nodes.png`
+- `results/plots/bfs_traversals_vs_nodes.png`
+- `results/plots/relative_error_vs_nodes.png`
+- `results/plots/runtime_by_family.png`
+- `results/plots/facebook_runtime_comparison.png`
 
-## Report Advice
+## Current Results Summary
 
-A strong report should compare the algorithms on:
+From the current `standard` benchmark run:
 
-- the Facebook graph
-- sparse random graphs
-- scale-free graphs
-- small-world graphs
+- both algorithms matched the exact diameter on all `6/6` validated small-graph cases
+- `Takes-Kosters` was faster overall on the synthetic benchmark set
+- `Crescenzi` was faster on the real-world `facebook_combined` graph
+- on `facebook_combined`, both algorithms returned diameter `8`
 
-And discuss:
+Facebook graph comparison:
 
-- speed vs quality tradeoff
-- how graph structure affects behavior
-- where each algorithm is stronger or weaker
+- `Crescenzi`: diameter `8`, runtime `0.030158 s`, `5` BFS traversals
+- `Takes-Kosters`: diameter `8`, runtime `0.062059 s`, `10` BFS traversals
+
+Overall synthetic benchmark trend:
+
+- `Takes-Kosters` was faster on all `5/5` Watts-Strogatz graphs
+- `Takes-Kosters` was faster on `4/5` Erdos-Renyi graphs
+- `Takes-Kosters` was faster on `3/5` Barabasi-Albert graphs
+
+## Main Algorithm Files
+
+- `src/graph_diameter/algorithms/crescenzi.py`
+- `src/graph_diameter/algorithms/takes_kosters.py`
+- `src/graph_diameter/algorithms/exact.py`

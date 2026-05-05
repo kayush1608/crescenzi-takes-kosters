@@ -1,36 +1,31 @@
 # Benchmark Summary
 
-This file summarizes the current benchmark pipeline outputs.
+This file is generated from the latest benchmark run.
 
-## Generated Artifacts
+## Run Configuration
 
-- `results/data/benchmark_results.csv`
-- `results/plots/runtime_vs_nodes.png`
-- `results/plots/bfs_traversals_vs_nodes.png`
-- `results/plots/relative_error_vs_nodes.png`
-- `results/plots/runtime_by_family.png`
-- `results/plots/facebook_runtime_comparison.png`
+- Benchmark profile: `large`
+- Total benchmark rows: `32`
+- Graph instances: `16`
+- Algorithms compared: `Crescenzi, Takes-Kosters`
 
-## Current Setup
+## Families Covered
 
-- Real-world graph: merged Facebook ego-network graph
-- Synthetic families:
-  - Erdős-Rényi
-  - Barabási-Albert
-  - Watts-Strogatz
-- Sizes:
-  - 120 nodes
-  - 220 nodes
-  - 500 nodes
+- `barabasi_albert`: `5` graph instance(s)
+- `erdos_renyi`: `5` graph instance(s)
+- `real_world`: `1` graph instance(s)
+- `watts_strogatz`: `5` graph instance(s)
 
 ## Validation
 
-For graphs up to the configured small-graph threshold, the exact baseline is used to compute:
+- No graphs were validated against the exact baseline in this run.
 
-- exact diameter
-- absolute error
-- relative error
+## Runtime Snapshot
 
-## Current Observation
+- `Crescenzi`: mean runtime `33.398762` s, median BFS traversals `1932.0`
+- `Takes-Kosters`: mean runtime `5.626111` s, median BFS traversals `354.0`
 
-In the present run, both implemented algorithms matched the exact diameter on the validated synthetic graphs.
+## Facebook Combined
+
+- `Crescenzi` returned diameter `8` in `0.029051` s using `5` BFS traversals
+- `Takes-Kosters` returned diameter `8` in `0.060778` s using `10` BFS traversals

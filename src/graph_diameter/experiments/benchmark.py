@@ -22,7 +22,9 @@ ROOT = Path(__file__).resolve().parents[3]
 DATASET_DIR = ROOT / "dataset"
 RESULTS_DIR = ROOT / "results" / "data"
 PLOTS_DIR = ROOT / "results" / "plots"
+REPORT_DIR = ROOT / "report"
 OUTPUT_CSV = RESULTS_DIR / "benchmark_results.csv"
+SUMMARY_MD = REPORT_DIR / "benchmark_summary.md"
 PROFILE_SIZES = {
     "quick": [120, 220],
     "standard": [120, 220, 500, 1000, 2000],
@@ -132,14 +134,71 @@ def run_benchmarks(profile: str = "standard") -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values(["family", "nodes", "algorithm", "graph"]).reset_index(drop=True)
 
 
+def write_benchmark_summary(dataframe: pd.DataFrame, output_path: Path, profile: str) -> None:
+    lines = [
+        "# Benchmark Summary",
+        "",
+        "This file is generated from the latest benchmark run.",
+        "",
+        "## Run Configuration",
+        "",
+        f"- Benchmark profile: `{profile}`",
+        f"- Total benchmark rows: `{len(dataframe)}`",
+        f"- Graph instances: `{dataframe['graph'].nunique()}`",
+        f"- Algorithms compared: `{', '.join(sorted(dataframe['algorithm'].unique()))}`",
+        "",
+        "## Families Covered",
+        "",
+    ]
+
+    for family in sorted(dataframe["family"].unique()):
+        family_rows = dataframe[dataframe["family"] == family]
+        lines.append(f"- `{family}`: `{family_rows['graph'].nunique()}` graph instance(s)")
+
+    validated = dataframe[dataframe["exact_diameter"].notna()].copy()
+    lines.extend(["", "## Validation", ""])
+    if validated.empty:
+        lines.append("- No graphs were validated against the exact baseline in this run.")
+    else:
+        for algorithm, group in validated.groupby("algorithm"):
+            exact_matches = int((group["absolute_error"] == 0).sum())
+            lines.append(
+                f"- `{algorithm}` matched the exact diameter on "
+                f"`{exact_matches}/{len(group)}` validated runs"
+            )
+
+    lines.extend(["", "## Runtime Snapshot", ""])
+    for algorithm, group in dataframe.groupby("algorithm"):
+        mean_runtime = group["runtime_seconds"].mean()
+        median_bfs = group["bfs_traversals"].median()
+        lines.append(
+            f"- `{algorithm}`: mean runtime `{mean_runtime:.6f}` s, "
+            f"median BFS traversals `{median_bfs:.1f}`"
+        )
+
+    facebook_rows = dataframe[dataframe["graph"] == "facebook_combined"]
+    if not facebook_rows.empty:
+        lines.extend(["", "## Facebook Combined", ""])
+        for _, row in facebook_rows.sort_values("runtime_seconds").iterrows():
+            lines.append(
+                f"- `{row['algorithm']}` returned diameter `{row['diameter']}` in "
+                f"`{row['runtime_seconds']:.6f}` s using `{row['bfs_traversals']}` BFS traversals"
+            )
+
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main(profile: str | None = None) -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
     selected_profile = profile or os.environ.get("BENCHMARK_PROFILE", "standard")
     dataframe = run_benchmarks(profile=selected_profile)
     dataframe.to_csv(OUTPUT_CSV, index=False)
+    write_benchmark_summary(dataframe, SUMMARY_MD, selected_profile)
     created_plots = generate_plots(dataframe, PLOTS_DIR)
     print(f"Saved benchmark results to {OUTPUT_CSV}")
+    print(f"Saved benchmark summary to {SUMMARY_MD}")
     print(f"Benchmark profile: {selected_profile}")
     for plot_path in created_plots:
         print(f"Saved plot to {plot_path}")

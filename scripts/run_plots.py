@@ -1,11 +1,13 @@
+import os
 from pathlib import Path
 
 import pandas as pd
 
+ROOT = Path(__file__).resolve().parents[1]
+os.environ.setdefault("MPLCONFIGDIR", str(ROOT / ".matplotlib"))
+
 from graph_diameter.experiments.plots import generate_plots
 
-
-ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = ROOT / "results" / "data" / "benchmark_results.csv"
 PLOTS_DIR = ROOT / "results" / "plots"
 
