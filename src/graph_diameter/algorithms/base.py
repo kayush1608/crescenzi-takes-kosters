@@ -1,0 +1,17 @@
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+
+import networkx as nx
+
+from graph_diameter.models import AlgorithmResult
+
+
+class DiameterAlgorithm(ABC):
+    """Common interface for all diameter algorithms in this repo."""
+
+    name: str
+
+    @abstractmethod
+    def run(self, graph: nx.Graph) -> AlgorithmResult:
+        raise NotImplementedError

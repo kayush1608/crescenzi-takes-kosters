@@ -1,0 +1,24 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editor and OS clutter
+.DS_Store
+.vscode/
+.idea/
+
+# Generated benchmark artifacts
+results/data/*.csv
+results/plots/*.png
+
+# Local research papers and other large reference files
+*.pdf
+
+# Keep placeholder files for empty tracked directories
+!results/data/.gitkeep
+!results/plots/.gitkeep
